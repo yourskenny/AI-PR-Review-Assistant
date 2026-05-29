@@ -58,6 +58,29 @@ ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format mar
 ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format json --output analysis-output\report.json
 ```
 
+使用 JSON 配置文件控制过滤、预算和规则：
+
+```powershell
+ai-pr-review analyze https://github.com/owner/repo/pull/123 --config .ai-pr-review.json
+```
+
+`.ai-pr-review.json` 示例：
+
+```json
+{
+  "language": "zh",
+  "model": "gpt-4.1-mini",
+  "enable_ai": true,
+  "max_files": 50,
+  "patch_budget_per_file": 3500,
+  "total_budget": 12000,
+  "include_patterns": ["src/*.py", "tests/*.py"],
+  "ignore_patterns": ["vendor/*", "*.min.js"],
+  "enabled_rules": null,
+  "min_severity": "low"
+}
+```
+
 也可以直接用 Python 模块运行：
 
 ```powershell
@@ -116,6 +139,7 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 ```text
 ai_pr_review/
   cli.py              # 命令行入口
+  config.py           # JSON 配置、文件过滤和分析参数
   github_client.py    # GitHub PR 数据获取
   models.py           # 核心数据结构
   patch_parser.py     # patch hunk 和新增行号解析

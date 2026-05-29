@@ -8,7 +8,7 @@ from openai import OpenAI
 
 from ai_pr_review.ai_client import AIClientError, parse_ai_review_response
 from ai_pr_review.context_builder import build_context_pack
-from ai_pr_review.models import PRContext, ReviewReport
+from ai_pr_review.models import PRContext, ReviewReport, Severity
 from ai_pr_review.risk_rules import scan_risks
 
 
@@ -19,14 +19,22 @@ class ReviewEngine:
         language: str = "zh",
         patch_budget_per_file: int = 3500,
         total_patch_budget: int = 12000,
+        enabled_rules: list[str] | None = None,
+        min_severity: Severity = Severity.LOW,
     ) -> None:
         self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4.1-mini"
         self.language = _normalise_language(language)
         self.patch_budget_per_file = patch_budget_per_file
         self.total_patch_budget = total_patch_budget
+        self.enabled_rules = enabled_rules
+        self.min_severity = min_severity
 
     def analyze(self, context: PRContext, use_ai: bool = True) -> ReviewReport:
-        risks = scan_risks(context)
+        risks = scan_risks(
+            context,
+            enabled_rules=self.enabled_rules,
+            min_severity=self.min_severity,
+        )
         fallback = ReviewReport(
             summary=self._fallback_summary(context),
             risks=risks,

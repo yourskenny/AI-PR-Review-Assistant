@@ -125,6 +125,21 @@ def test_every_risk_finding_has_required_metadata() -> None:
     assert all(finding.source for finding in findings)
 
 
+def test_scan_risks_respects_enabled_rules_and_min_severity() -> None:
+    context = _context_with_file(
+        filename="src/app.py",
+        patch="@@ -1,1 +1,3 @@\n+eval(user)\n+time.sleep(1)\n+value = 1\n",
+    )
+
+    findings = scan_risks(
+        context,
+        enabled_rules=["reliability.fixed_sleep", "testing.source_without_tests"],
+        min_severity=Severity.MEDIUM,
+    )
+
+    assert {finding.rule_id for finding in findings} == {"testing.source_without_tests"}
+
+
 def _context_with_file(filename: str, patch: str) -> PRContext:
     return PRContext(
         ref=PullRequestRef("owner", "repo", 1),

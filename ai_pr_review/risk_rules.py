@@ -136,7 +136,15 @@ RULES: list[RiskRule] = [
 ]
 
 
-def scan_risks(context: PRContext) -> list[RiskFinding]:
+SEVERITY_RANK = {Severity.LOW: 1, Severity.MEDIUM: 2, Severity.HIGH: 3}
+
+
+def scan_risks(
+    context: PRContext,
+    *,
+    enabled_rules: list[str] | None = None,
+    min_severity: Severity = Severity.LOW,
+) -> list[RiskFinding]:
     findings: list[RiskFinding] = []
     changed_test_files = [file for file in context.files if _is_test_file(file.filename)]
     changed_source_files = [file for file in context.files if not _is_test_file(file.filename)]
@@ -222,7 +230,17 @@ def scan_risks(context: PRContext) -> list[RiskFinding]:
             )
         )
 
-    return findings
+    return [
+        finding
+        for finding in findings
+        if _rule_is_enabled(finding.rule_id, enabled_rules)
+        and SEVERITY_RANK[finding.severity] >= SEVERITY_RANK[min_severity]
+    ]
+
+
+def _rule_is_enabled(rule_id: str, enabled_rules: list[str] | None) -> bool:
+    return enabled_rules is None or rule_id in enabled_rules
+
 
 def _is_test_file(filename: str) -> bool:
     lowered = filename.lower()

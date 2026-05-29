@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 
 from ai_pr_review import cli
 from ai_pr_review.cli import app
-from ai_pr_review.models import PRContext, PRFile, PullRequestRef, ReviewReport
+from ai_pr_review.models import PRContext, PRFile, PullRequestRef, ReviewReport, Severity
 
 
 def test_analyze_help_exposes_model_and_language_options() -> None:
@@ -28,7 +28,12 @@ def test_analyze_writes_json_report_when_format_json_is_requested(monkeypatch, t
             )
 
     class FakeReviewEngine:
-        def __init__(self, model: str | None = None, language: str = "zh") -> None:
+        def __init__(
+            self,
+            model: str | None = None,
+            language: str = "zh",
+            **kwargs: object,
+        ) -> None:
             self.model = model
             self.language = language
 
@@ -57,3 +62,86 @@ def test_analyze_writes_json_report_when_format_json_is_requested(monkeypatch, t
     data = json.loads(output.read_text(encoding="utf-8"))
     assert data["pull_request"]["number"] == 7
     assert data["summary"] == ["Changed one Python file."]
+
+
+def test_analyze_applies_config_file_to_filters_and_engine(monkeypatch, tmp_path) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeGitHubClient:
+        def fetch_pr_context(self, ref: PullRequestRef) -> PRContext:
+            return PRContext(
+                ref=ref,
+                title="Demo PR",
+                body="",
+                author="dev",
+                html_url="https://github.com/owner/repo/pull/7",
+                files=[
+                    PRFile("src/app.py", "modified", 1, 0, "+eval(user)"),
+                    PRFile("src/skip.py", "modified", 1, 0, "+eval(user)"),
+                    PRFile("docs/readme.md", "modified", 1, 0, "+docs"),
+                ],
+            )
+
+    class FakeReviewEngine:
+        def __init__(
+            self,
+            model: str | None = None,
+            language: str = "zh",
+            patch_budget_per_file: int = 3500,
+            total_patch_budget: int = 12000,
+            enabled_rules: list[str] | None = None,
+            min_severity: Severity = Severity.LOW,
+        ) -> None:
+            captured["model"] = model
+            captured["language"] = language
+            captured["patch_budget_per_file"] = patch_budget_per_file
+            captured["total_patch_budget"] = total_patch_budget
+            captured["enabled_rules"] = enabled_rules
+            captured["min_severity"] = min_severity
+
+        def analyze(self, context: PRContext, use_ai: bool = True) -> ReviewReport:
+            captured["use_ai"] = use_ai
+            captured["files"] = [file.filename for file in context.files]
+            return ReviewReport(summary=["configured"])
+
+    config_path = tmp_path / "ai-pr-review.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "language": "en",
+                "model": "config-model",
+                "enable_ai": False,
+                "include_patterns": ["src/*.py"],
+                "ignore_patterns": ["src/skip.py"],
+                "patch_budget_per_file": 17,
+                "total_budget": 33,
+                "enabled_rules": ["security.dynamic_code_execution"],
+                "min_severity": "medium",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(cli, "GitHubClient", FakeGitHubClient)
+    monkeypatch.setattr(cli, "ReviewEngine", FakeReviewEngine)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "analyze",
+            "https://github.com/owner/repo/pull/7",
+            "--config",
+            str(config_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "model": "config-model",
+        "language": "en",
+        "patch_budget_per_file": 17,
+        "total_patch_budget": 33,
+        "enabled_rules": ["security.dynamic_code_execution"],
+        "min_severity": Severity.MEDIUM,
+        "use_ai": False,
+        "files": ["src/app.py"],
+    }
