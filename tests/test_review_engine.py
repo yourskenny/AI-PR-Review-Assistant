@@ -42,7 +42,12 @@ def test_review_engine_sends_context_pack_to_ai(monkeypatch) -> None:
         ],
     )
 
-    ReviewEngine(model="test-model", patch_budget_per_file=20, total_patch_budget=30).analyze(
+    ReviewEngine(
+        model="test-model",
+        language="zh",
+        patch_budget_per_file=20,
+        total_patch_budget=30,
+    ).analyze(
         context,
         use_ai=True,
     )
@@ -55,3 +60,42 @@ def test_review_engine_sends_context_pack_to_ai(monkeypatch) -> None:
         {"filename": "src/other.py", "reason": "total_patch_budget_exceeded"}
     ]
     assert payload["changed_files"][0]["filename"] == "src/risky.py"
+    assert payload["language"] == "zh"
+
+
+def test_review_engine_falls_back_when_ai_returns_invalid_json(monkeypatch) -> None:
+    class FakeMessage:
+        content = "not-json"
+
+    class FakeChoice:
+        message = FakeMessage()
+
+    class FakeResponse:
+        choices = [FakeChoice()]
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            return FakeResponse()
+
+    class FakeChat:
+        completions = FakeCompletions()
+
+    class FakeOpenAI:
+        chat = FakeChat()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr("ai_pr_review.review_engine.OpenAI", lambda: FakeOpenAI())
+    context = PRContext(
+        ref=PullRequestRef("owner", "repo", 1),
+        title="demo",
+        body="",
+        author="dev",
+        html_url="https://github.com/owner/repo/pull/1",
+        files=[PRFile("src/app.py", "modified", 1, 0, "@@ -1,1 +1,1 @@\n+value = 1\n")],
+    )
+
+    report = ReviewEngine(model="test-model").analyze(context, use_ai=True)
+
+    assert report.model_used is None
+    assert report.ai_error.startswith("AI analysis failed")
+    assert report.summary[0] == "PR #1: demo"

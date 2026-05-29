@@ -137,4 +137,6 @@ class ReviewReport:
     summary: list[str] = field(default_factory=list)
     risks: list[RiskFinding] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
+    review_checklist: list[str] = field(default_factory=list)
     model_used: str | None = None
+    ai_error: str | None = None

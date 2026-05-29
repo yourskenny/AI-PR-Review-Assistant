@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
+from ai_pr_review.ai_client import AIClientError
 from ai_pr_review.github_client import GitHubClient, GitHubClientError, parse_pr_url
 from ai_pr_review.report import render_markdown
 from ai_pr_review.review_engine import ReviewEngine
@@ -35,13 +36,21 @@ def analyze(
         bool,
         typer.Option("--no-ai", help="Disable OpenAI analysis and use local heuristics only."),
     ] = False,
+    model: Annotated[
+        str | None,
+        typer.Option("--model", help="OpenAI model to use when AI analysis is enabled."),
+    ] = None,
+    language: Annotated[
+        str,
+        typer.Option("--language", help="Report language: zh or en."),
+    ] = "zh",
 ) -> None:
     """Fetch a GitHub PR and generate a review report."""
     try:
         ref = parse_pr_url(pr_url)
         context = GitHubClient().fetch_pr_context(ref)
-        report = ReviewEngine().analyze(context, use_ai=not no_ai)
-    except GitHubClientError as exc:
+        report = ReviewEngine(model=model, language=language).analyze(context, use_ai=not no_ai)
+    except (GitHubClientError, AIClientError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
     markdown = render_markdown(context, report)
