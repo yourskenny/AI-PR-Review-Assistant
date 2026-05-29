@@ -65,11 +65,14 @@ class GitHubClient:
         return headers
 
     def _get_json(self, path: str) -> dict[str, Any]:
-        response = requests.get(
-            f"https://api.github.com{path}",
-            headers=self._headers(),
-            timeout=self.timeout,
-        )
+        try:
+            response = requests.get(
+                f"https://api.github.com{path}",
+                headers=self._headers(),
+                timeout=self.timeout,
+            )
+        except requests.RequestException as exc:
+            raise GitHubClientError(f"GitHub API request failed: {exc}") from exc
         if response.status_code >= 400:
             raise GitHubClientError(f"GitHub API failed: {response.status_code} {response.text}")
         return response.json()
@@ -78,12 +81,15 @@ class GitHubClient:
         items: list[dict[str, Any]] = []
         page = 1
         while True:
-            response = requests.get(
-                f"https://api.github.com{path}",
-                params={"per_page": 100, "page": page},
-                headers=self._headers(),
-                timeout=self.timeout,
-            )
+            try:
+                response = requests.get(
+                    f"https://api.github.com{path}",
+                    params={"per_page": 100, "page": page},
+                    headers=self._headers(),
+                    timeout=self.timeout,
+                )
+            except requests.RequestException as exc:
+                raise GitHubClientError(f"GitHub API request failed: {exc}") from exc
             if response.status_code >= 400:
                 raise GitHubClientError(
                     f"GitHub API failed: {response.status_code} {response.text}"

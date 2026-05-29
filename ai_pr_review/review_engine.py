@@ -56,9 +56,13 @@ class ReviewEngine:
                 {
                     "severity": finding.severity.value,
                     "category": finding.category,
+                    "rule_id": finding.rule_id,
+                    "confidence": finding.confidence.value,
                     "file": finding.file,
+                    "line_start": finding.line_start,
                     "message": finding.message,
                     "evidence": finding.evidence,
+                    "recommendation": finding.recommendation,
                 }
                 for finding in risks
             ],
