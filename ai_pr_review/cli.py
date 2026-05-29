@@ -12,6 +12,7 @@ from ai_pr_review.github_client import GitHubClient, GitHubClientError, parse_pr
 from ai_pr_review.github_commenter import GitHubCommenter, GitHubCommenterError
 from ai_pr_review.report import render_json, render_markdown
 from ai_pr_review.review_engine import ReviewEngine
+from ai_pr_review.scanners.bandit import BanditScanner
 
 app = typer.Typer(help="AI-assisted GitHub Pull Request review CLI.")
 console = Console()
@@ -46,6 +47,10 @@ def analyze(
         bool,
         typer.Option("--comment", help="Create or update one GitHub PR summary comment."),
     ] = False,
+    enable_scanners: Annotated[
+        str,
+        typer.Option("--enable-scanners", help="Comma-separated optional scanners, e.g. bandit."),
+    ] = "",
     no_ai: Annotated[
         bool,
         typer.Option("--no-ai", help="Disable OpenAI analysis and use local heuristics only."),
@@ -74,6 +79,7 @@ def analyze(
             total_patch_budget=config.total_budget,
             enabled_rules=config.enabled_rules,
             min_severity=config.min_severity,
+            scanners=_build_scanners(enable_scanners),
         ).analyze(context, use_ai=(not no_ai and config.enable_ai))
     except (GitHubClientError, AIClientError, ConfigError) as exc:
         raise typer.BadParameter(str(exc)) from exc
@@ -105,6 +111,16 @@ def _normalise_output_format(output_format: str) -> str:
     if lowered in {"markdown", "json"}:
         return lowered
     raise typer.BadParameter("format must be either 'markdown' or 'json'")
+
+
+def _build_scanners(scanner_names: str) -> list:
+    scanners = []
+    for name in [item.strip().lower() for item in scanner_names.split(",") if item.strip()]:
+        if name == "bandit":
+            scanners.append(BanditScanner())
+            continue
+        raise typer.BadParameter(f"unknown scanner '{name}'")
+    return scanners
 
 
 if __name__ == "__main__":

@@ -90,6 +90,15 @@ ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --comment
 
 `--comment` 会查找带有 `<!-- ai-pr-review-assistant -->` 标记的 bot comment，存在则更新，不存在则创建。当前版本有意只发单条 summary comment，避免大量 inline comments 干扰 Review。
 
+可选启用外部扫描器：
+
+```powershell
+python -m pip install bandit
+ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --enable-scanners bandit
+```
+
+外部扫描器不是默认依赖。当前 Bandit 适配器只在本地临时目录中扫描 PR 新增的 Python 内容，命令不存在或无输出时会跳过，不影响基础规则和 AI 报告。
+
 也可以直接用 Python 模块运行：
 
 ```powershell
@@ -143,6 +152,10 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 
 本项目采用规则和模型结合的方式。规则层适合发现稳定、高置信的工程风险；模型层负责解释影响、聚合上下文和生成自然语言建议。报告中保留严重级别和证据片段，Review 人可以快速判断是否采纳。未来版本可以加入历史 PR 反馈，把“被接受的建议”和“被忽略的建议”回流到排序策略中。
 
+### 外部扫描器
+
+`--enable-scanners bandit` 可把 Bandit 的 JSON 结果合并到同一个 finding 结构中，保留 `file`、`line`、`rule_id`、`severity`、`confidence`、`evidence` 和 `recommendation`。扫描器接口是可选增强，目标是接入成熟工具的高置信发现，而不是复制它们的规则实现。
+
 ### GitHub Action 集成
 
 仓库提供 [GitHub Action 示例](examples/github-action.yml)，可在 PR opened / synchronize / reopened 时运行分析并发布单条 summary comment。示例使用最小权限：
@@ -172,6 +185,9 @@ ai_pr_review/
   review_engine.py    # 分析编排和模型调用
   risk_rules.py       # 本地风险规则
   report.py           # Markdown / JSON 报告生成
+  scanners/
+    base.py           # 外部扫描器协议
+    bandit.py         # 可选 Bandit JSON 适配器
 examples/
   github-action.yml
 tests/
