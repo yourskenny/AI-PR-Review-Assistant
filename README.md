@@ -107,6 +107,11 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 
 ## 输出示例
 
+完整样例报告见：
+
+- [Markdown 样例报告](examples/sample_report.md)
+- [JSON 样例报告](examples/sample_report.json)
+
 ```markdown
 # AI PR Review Report
 
@@ -170,6 +175,23 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 - 默认不执行 PR 中的代码，只读取 GitHub API 提供的 PR 元数据和 patch。
 - 自动评论只发布或更新一条 summary comment，不生成大量行级评论。
 
+## 测试方式
+
+本仓库使用 `pytest` 和 `ruff` 做基础质量门禁：
+
+```powershell
+python -m pip install -e ".[dev]"
+python -m pytest
+python -m ruff check .
+```
+
+端到端 smoke：
+
+```powershell
+python -m ai_pr_review.cli analyze https://github.com/openai/openai-python/pull/123 --no-ai --format markdown --output analysis-output\demo-report.md
+python -m ai_pr_review.cli analyze https://github.com/openai/openai-python/pull/123 --no-ai --format json --output analysis-output\demo-report.json
+```
+
 ## 项目结构
 
 ```text
@@ -206,6 +228,27 @@ tests/
 - 低噪声排序：结合历史反馈、测试覆盖率和运行时指标调整风险优先级。
 - 多语言规则库：为 Python、TypeScript、Go、Java 分别维护高置信规则。
 - 企业部署：支持私有模型网关、审计日志和数据脱敏策略。
+
+## Demo 视频
+
+Demo 视频链接：待补充。
+
+录制脚本见 [Demo 视频脚本](docs/demo_script.md)。视频应覆盖作品定位、无 AI Key 降级、Markdown / JSON 报告、GitHub Action、设计思路和测试方式。
+
+## 第三方参考与原创声明
+
+本项目主体为原创 Python CLI 实现，核心原创部分包括：
+
+- GitHub PR metadata / patch 获取和统一数据模型。
+- patch hunk / 新增行号解析。
+- 规则优先的低噪声 finding 结构。
+- 上下文预算控制和省略记录。
+- AI JSON fallback 与 Markdown / JSON Review Brief。
+- 单条 GitHub summary comment。
+
+项目依赖列在 `pyproject.toml`：`openai`、`requests`、`typer`、`rich`，开发依赖为 `pytest` 和 `ruff`。可选外部 scanner 参考并适配 Bandit 的 JSON 输出格式，但 Bandit 不作为默认依赖，也没有复制其规则实现。
+
+设计上参考了 PR-Agent、reviewdog、Claude Code Security Review、Semgrep、Bandit、Gitleaks、CodeQL、Danger JS、OpenReview、Kodus 等成熟项目的公开产品思想；本仓库没有 fork 或导入这些项目的大段代码。
 
 ## 比赛提交说明
 
