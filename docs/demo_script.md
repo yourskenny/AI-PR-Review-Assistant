@@ -49,7 +49,8 @@ python -m ai_pr_review.cli analyze https://github.com/openai/openai-python/pull/
 - workflow 在 PR opened / synchronize / reopened 时运行。
 - 权限最小化：`contents: read`、`pull-requests: write`、`issues: write`。
 - 默认跳过 fork PR，避免 secrets 暴露给不可信代码。
-- `--comment` 只创建或更新一条 summary comment，避免大量 inline comments 干扰 Review。
+- `--comment` 只创建或更新一条 summary comment，作为默认低噪声自动化路径。
+- 如需演示行级 Review，可手动运行 `--inline-comments`，工具只会把有文件路径和新增行号证据的 finding 转成行级评论。
 
 ## 2:45-3:30 设计思路
 
@@ -62,7 +63,7 @@ PR URL
   -> risk rules / optional scanners 产生证据 finding
   -> context builder 做预算控制和省略记录
   -> AI client 或 local fallback 生成 summary / suggestions
-  -> Markdown / JSON report / GitHub summary comment
+  -> Markdown / JSON report / GitHub summary comment / optional inline review
 ```
 
 重点强调：
@@ -91,6 +92,7 @@ python -m ai_pr_review.cli analyze https://github.com/openai/openai-python/pull/
 - AI JSON fallback。
 - Markdown / JSON 报告。
 - GitHub comment create / update。
+- GitHub inline review create / skip。
 - GitHub Action 示例。
 - 外部 scanner 适配器。
 

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from typing import Any, Literal
 
 import requests
 
-from ai_pr_review.models import PullRequestRef
+from ai_pr_review.models import PullRequestRef, RiskFinding
 
 COMMENT_MARKER = "<!-- ai-pr-review-assistant -->"
+INLINE_REVIEW_MARKER = "<!-- ai-pr-review-assistant-inline -->"
 
 
 class GitHubCommenterError(RuntimeError):
@@ -38,6 +40,36 @@ class GitHubCommenter:
             {"body": comment_body},
         )
         return "updated"
+
+    def create_inline_review(
+        self,
+        ref: PullRequestRef,
+        findings: Sequence[RiskFinding],
+    ) -> Literal["created", "skipped"]:
+        comments = [_inline_comment_payload(finding) for finding in findings]
+        comments = [comment for comment in comments if comment is not None]
+        if not comments:
+            return "skipped"
+
+        pr_payload = self._get_json(f"/repos/{ref.owner}/{ref.repo}/pulls/{ref.number}")
+        head_sha = (
+            (pr_payload.get("head") or {}).get("sha")
+            if isinstance(pr_payload, dict)
+            else None
+        )
+        if not head_sha:
+            raise GitHubCommenterError("GitHub pull request API returned no head sha.")
+
+        self._post_json(
+            f"/repos/{ref.owner}/{ref.repo}/pulls/{ref.number}/reviews",
+            {
+                "commit_id": head_sha,
+                "event": "COMMENT",
+                "body": f"{INLINE_REVIEW_MARKER}\nAI PR Review inline findings: {len(comments)}",
+                "comments": comments,
+            },
+        )
+        return "created"
 
     def _find_existing_comment(self, ref: PullRequestRef) -> dict[str, Any] | None:
         comments = self._get_json(
@@ -110,3 +142,21 @@ def _is_bot_marker_comment(comment: dict[str, Any]) -> bool:
     return user.get("type") == "Bot" and str(comment.get("body") or "").startswith(
         COMMENT_MARKER
     )
+
+
+def _inline_comment_payload(finding: RiskFinding) -> dict[str, Any] | None:
+    if not finding.file or finding.line_start is None:
+        return None
+
+    return {
+        "path": finding.file,
+        "line": finding.line_start,
+        "side": "RIGHT",
+        "body": (
+            f"**{str(finding.severity).upper()} {finding.category}** `{finding.rule_id}`\n\n"
+            f"{finding.message}\n\n"
+            f"Evidence:\n```text\n{finding.evidence}\n```\n\n"
+            f"Recommendation: {finding.recommendation}\n\n"
+            f"Confidence: {finding.confidence}; Source: {finding.source}"
+        ),
+    }

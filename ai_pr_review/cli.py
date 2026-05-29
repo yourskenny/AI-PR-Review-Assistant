@@ -48,6 +48,13 @@ def analyze(
         bool,
         typer.Option("--comment", help="Create or update one GitHub PR summary comment."),
     ] = False,
+    inline_comments: Annotated[
+        bool,
+        typer.Option(
+            "--inline-comments",
+            help="Create a GitHub PR review with inline finding comments.",
+        ),
+    ] = False,
     enable_scanners: Annotated[
         str,
         typer.Option("--enable-scanners", help="Comma-separated optional scanners, e.g. bandit."),
@@ -99,6 +106,12 @@ def analyze(
         except GitHubCommenterError as exc:
             raise typer.BadParameter(str(exc)) from exc
         console.print(f"[green]GitHub comment {result}[/green]")
+    if inline_comments:
+        try:
+            result = GitHubCommenter().create_inline_review(ref, report.risks)
+        except GitHubCommenterError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        console.print(f"[green]GitHub inline review {result}[/green]")
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(rendered, encoding="utf-8")

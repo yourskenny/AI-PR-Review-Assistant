@@ -89,14 +89,15 @@ ai-pr-review analyze https://github.com/owner/repo/pull/123 --config .ai-pr-revi
 }
 ```
 
-将报告写回 PR 讨论区的单条 summary comment：
+将报告写回 PR 讨论区或生成证据绑定的行级 Review：
 
 ```powershell
 $env:GITHUB_TOKEN = "ghp_xxx"
 ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --comment
+ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --inline-comments
 ```
 
-`--comment` 会查找带有 `<!-- ai-pr-review-assistant -->` 标记的 bot comment，存在则更新，不存在则创建。当前版本有意只发单条 summary comment，避免大量 inline comments 干扰 Review。
+`--comment` 会查找带有 `<!-- ai-pr-review-assistant -->` 标记的 bot comment，存在则更新，不存在则创建。`--inline-comments` 会创建一条 GitHub PR Review，只把有文件路径和新增行号证据的 finding 转成行级评论；没有可定位 finding 时会跳过。默认仍不自动评论，CI 示例也继续使用单条 summary comment，避免大量行级评论干扰 Review。
 
 可选启用外部扫描器：
 
@@ -171,7 +172,7 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 
 ### GitHub Action 集成
 
-仓库提供 [GitHub Action 示例](examples/github-action.yml)，可在 PR opened / synchronize / reopened 时运行分析并发布单条 summary comment。示例使用最小权限：
+仓库提供 [GitHub Action 示例](examples/github-action.yml)，可在 PR opened / synchronize / reopened 时运行分析并发布单条 summary comment。CLI 也支持手动使用 `--inline-comments` 生成证据绑定的行级 Review。示例使用最小权限：
 
 - `contents: read`
 - `pull-requests: write`
@@ -181,7 +182,7 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 
 - 示例默认跳过 fork PR，避免把仓库 secrets 暴露给不可信代码。
 - 默认不执行 PR 中的代码，只读取 GitHub API 提供的 PR 元数据和 patch。
-- 自动评论只发布或更新一条 summary comment，不生成大量行级评论。
+- 自动化 workflow 默认只发布或更新一条 summary comment；行级评论需要显式开启，并且只针对有新增行号证据的 finding。
 
 ## 测试方式
 
@@ -207,7 +208,7 @@ ai_pr_review/
   cli.py              # 命令行入口
   config.py           # JSON 配置、文件过滤和分析参数
   dashboard.py        # 本地 Web dashboard 和 JSON API
-  github_commenter.py # PR summary comment 创建 / 更新
+  github_commenter.py # PR summary comment 与行级 Review 创建
   github_client.py    # GitHub PR 数据获取
   models.py           # 核心数据结构
   patch_parser.py     # patch hunk 和新增行号解析
@@ -258,7 +259,7 @@ Demo 视频链接：待补充。
 - 规则优先的低噪声 finding 结构。
 - 上下文预算控制和省略记录。
 - AI JSON fallback 与 Markdown / JSON Review Brief。
-- 单条 GitHub summary comment。
+- 单条 GitHub summary comment 与可选行级 Review comment。
 
 项目依赖列在 `pyproject.toml`：`openai`、`requests`、`typer`、`rich`，开发依赖为 `pytest` 和 `ruff`。可选外部 scanner 参考并适配 Bandit 的 JSON 输出格式，但 Bandit 不作为默认依赖，也没有复制其规则实现。
 
@@ -273,3 +274,5 @@ Demo 视频链接：待补充。
 赛题原文已保存到 [赛题原文](docs/problem_statement.md)，用于持续校验实现范围是否偏离题面要求。
 
 官方 FAQ 中与提交规范、评分重点和作品有效性相关的信息已整理到 [官方 FAQ 关键信息摘录](docs/competition_faq_notes.md)。后续迭代本仓库时，应优先按该文档检查 PR、commit、README 和 demo 材料是否满足规则。
+
+本阶段功能收口、验证口径和后续建议见 [2026-05-29 阶段收尾总结](docs/stage_summary_2026-05-29.md)。

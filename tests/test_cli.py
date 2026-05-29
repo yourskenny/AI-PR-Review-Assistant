@@ -203,6 +203,71 @@ def test_analyze_posts_summary_comment_when_comment_flag_is_set(monkeypatch) -> 
     assert "GitHub comment created" in result.output
 
 
+def test_analyze_posts_inline_review_when_inline_comment_flag_is_set(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeGitHubClient:
+        def fetch_pr_context(self, ref: PullRequestRef) -> PRContext:
+            return PRContext(
+                ref=ref,
+                title="Demo PR",
+                body="",
+                author="dev",
+                html_url="https://github.com/owner/repo/pull/7",
+                files=[PRFile("src/app.py", "modified", 1, 0, "+eval(user)")],
+            )
+
+    class FakeReviewEngine:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def analyze(self, context: PRContext, use_ai: bool = True) -> ReviewReport:
+            from ai_pr_review.models import Confidence, FindingSource, RiskFinding
+
+            return ReviewReport(
+                risks=[
+                    RiskFinding(
+                        severity=Severity.HIGH,
+                        category="security",
+                        file="src/app.py",
+                        message="Dynamic execution appears in the changed line.",
+                        evidence="eval(user)",
+                        rule_id="security.dynamic_code_execution",
+                        confidence=Confidence.HIGH,
+                        recommendation="Use a bounded dispatch table.",
+                        source=FindingSource.RULE,
+                        line_start=1,
+                        line_end=1,
+                    )
+                ]
+            )
+
+    class FakeCommenter:
+        def create_inline_review(self, ref: PullRequestRef, findings: object) -> str:
+            captured["ref"] = ref
+            captured["findings"] = findings
+            return "created"
+
+    monkeypatch.setattr(cli, "GitHubClient", FakeGitHubClient)
+    monkeypatch.setattr(cli, "ReviewEngine", FakeReviewEngine)
+    monkeypatch.setattr(cli, "GitHubCommenter", lambda: FakeCommenter())
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "analyze",
+            "https://github.com/owner/repo/pull/7",
+            "--no-ai",
+            "--inline-comments",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["ref"] == PullRequestRef("owner", "repo", 7)
+    assert "security.dynamic_code_execution" in str(captured["findings"])
+    assert "GitHub inline review created" in result.output
+
+
 def test_analyze_enables_bandit_scanner_from_cli(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
