@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI PR Review Console</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='dashboard.css') }}" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar" aria-label="Dashboard header">
+        <div>
+          <p class="eyebrow">Evidence-first PR review</p>
+          <h1>AI PR Review Console</h1>
+        </div>
+        <div class="status-strip" aria-label="Analyzer capabilities">
+          <span>Rules</span>
+          <span>AI fallback</span>
+          <span>Scanners</span>
+          <span>GitHub-ready</span>
+        </div>
+      </section>
+
+      <section class="analysis-band">
+        <form class="control-panel" method="post" action="/analyze">
+          <label>
+            <span>GitHub PR URL</span>
+            <input
+              name="pr_url"
+              type="url"
+              placeholder="https://github.com/owner/repo/pull/123"
+              value="{{ form.pr_url }}"
+              required
+            />
+          </label>
+
+          <div class="control-grid">
+            <label>
+              <span>Mode</span>
+              <select name="mode">
+                <option value="no-ai" {% if form.mode == "no-ai" %}selected{% endif %}>No AI</option>
+                <option value="ai" {% if form.mode == "ai" %}selected{% endif %}>AI assisted</option>
+              </select>
+            </label>
+            <label>
+              <span>Language</span>
+              <select name="language">
+                <option value="zh" {% if form.language == "zh" %}selected{% endif %}>Chinese</option>
+                <option value="en" {% if form.language == "en" %}selected{% endif %}>English</option>
+              </select>
+            </label>
+            <label>
+              <span>Scanners</span>
+              <input name="scanners" type="text" placeholder="bandit" value="{{ form.scanners }}" />
+            </label>
+          </div>
+
+          <button class="primary-action" type="submit">Analyze PR</button>
+        </form>
+
+        <aside class="brief-panel">
+          <p class="eyebrow">Review Brief Shape</p>
+          <ul>
+            <li>Change summary before findings</li>
+            <li>Severity and confidence matrix</li>
+            <li>Evidence-bound recommendations</li>
+            <li>Copy-ready PR comment</li>
+          </ul>
+        </aside>
+      </section>
+
+      {% if error %}
+      <section class="error-panel" role="alert">
+        <strong>Analysis failed</strong>
+        <p>{{ error }}</p>
+      </section>
+      {% endif %}
+
+      {% if result %}
+      <section class="result-header">
+        <div>
+          <p class="eyebrow">Pull Request</p>
+          <h2>{{ result.context.title or "Untitled PR" }}</h2>
+          <a href="{{ result.context.html_url }}">{{ result.context.html_url }}</a>
+        </div>
+        <dl class="metrics">
+          <div>
+            <dt>Files</dt>
+            <dd>{{ result.context.files|length }}</dd>
+          </div>
+          <div>
+            <dt>Findings</dt>
+            <dd>{{ result.report.risks|length }}</dd>
+          </div>
+          <div>
+            <dt>Mode</dt>
+            <dd>{{ result.mode }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="content-grid">
+        <section class="report-section">
+          <h2>Review Brief</h2>
+          <ul class="summary-list">
+            {% for item in result.report.summary %}
+            <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+          {% if result.report.suggestions %}
+          <h3>Suggestions</h3>
+          <ul class="summary-list">
+            {% for item in result.report.suggestions %}
+            <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </section>
+
+        <section class="report-section">
+          <h2>Risk Matrix</h2>
+          <div class="matrix">
+            {% for finding in result.report.risks %}
+            <div class="matrix-row">
+              <span>{{ finding.severity.value }}</span>
+              <span>{{ finding.confidence.value }}</span>
+              <strong>{{ finding.category }}</strong>
+            </div>
+            {% endfor %}
+            {% if not result.report.risks %}
+            <p>No evidence-backed risk findings detected.</p>
+            {% endif %}
+          </div>
+        </section>
+      </section>
+
+      <section class="findings-section">
+        <h2>Findings with Evidence</h2>
+        <div class="findings-list">
+          {% for finding in result.report.risks %}
+          <article class="finding-card">
+            <div class="finding-head">
+              <strong>{{ finding.severity.value|upper }} {{ finding.category }}</strong>
+              <span>{{ finding.file }}{% if finding.line_start %}:{{ finding.line_start }}{% endif %}</span>
+            </div>
+            <p>{{ finding.message }}</p>
+            <dl>
+              <div><dt>Rule</dt><dd>{{ finding.rule_id }}</dd></div>
+              <div><dt>Confidence</dt><dd>{{ finding.confidence.value }}</dd></div>
+              <div><dt>Source</dt><dd>{{ finding.source.value }}</dd></div>
+            </dl>
+            <pre>{{ finding.evidence }}</pre>
+            <p class="recommendation">{{ finding.recommendation }}</p>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="artifact-grid">
+        <section>
+          <h2>Copy-ready Review Comment</h2>
+          <textarea readonly>{{ result.markdown }}</textarea>
+        </section>
+        <section>
+          <h2>JSON Report</h2>
+          <textarea readonly>{{ json_text }}</textarea>
+        </section>
+      </section>
+      {% endif %}
+    </main>
+  </body>
+</html>

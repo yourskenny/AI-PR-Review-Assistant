@@ -15,6 +15,14 @@ def test_analyze_help_exposes_model_and_language_options() -> None:
     assert "--language" in result.output
 
 
+def test_dashboard_help_is_available() -> None:
+    result = CliRunner().invoke(app, ["dashboard", "--help"])
+
+    assert result.exit_code == 0
+    assert "--host" in result.output
+    assert "--port" in result.output
+
+
 def test_analyze_writes_json_report_when_format_json_is_requested(monkeypatch, tmp_path) -> None:
     class FakeGitHubClient:
         def fetch_pr_context(self, ref: PullRequestRef) -> PRContext:
