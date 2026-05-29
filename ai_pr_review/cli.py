@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from ai_pr_review.ai_client import AIClientError
+from ai_pr_review.config import ConfigError, apply_file_filters, load_config
 from ai_pr_review.github_client import GitHubClient, GitHubClientError, parse_pr_url
 from ai_pr_review.report import render_json, render_markdown
 from ai_pr_review.review_engine import ReviewEngine
@@ -36,6 +37,10 @@ def analyze(
         str,
         typer.Option("--format", help="Output format: markdown or json."),
     ] = "markdown",
+    config_path: Annotated[
+        Path | None,
+        typer.Option("--config", help="Path to .ai-pr-review.json config file."),
+    ] = None,
     no_ai: Annotated[
         bool,
         typer.Option("--no-ai", help="Disable OpenAI analysis and use local heuristics only."),
@@ -45,17 +50,27 @@ def analyze(
         typer.Option("--model", help="OpenAI model to use when AI analysis is enabled."),
     ] = None,
     language: Annotated[
-        str,
+        str | None,
         typer.Option("--language", help="Report language: zh or en."),
-    ] = "zh",
+    ] = None,
 ) -> None:
     """Fetch a GitHub PR and generate a review report."""
     try:
+        config = load_config(config_path)
         normalized_format = _normalise_output_format(output_format)
         ref = parse_pr_url(pr_url)
-        context = GitHubClient().fetch_pr_context(ref)
-        report = ReviewEngine(model=model, language=language).analyze(context, use_ai=not no_ai)
-    except (GitHubClientError, AIClientError) as exc:
+        context = apply_file_filters(GitHubClient().fetch_pr_context(ref), config)
+        resolved_model = model or config.model
+        resolved_language = language or config.language
+        report = ReviewEngine(
+            model=resolved_model,
+            language=resolved_language,
+            patch_budget_per_file=config.patch_budget_per_file,
+            total_patch_budget=config.total_budget,
+            enabled_rules=config.enabled_rules,
+            min_severity=config.min_severity,
+        ).analyze(context, use_ai=(not no_ai and config.enable_ai))
+    except (GitHubClientError, AIClientError, ConfigError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
     rendered = (
