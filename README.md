@@ -272,7 +272,10 @@ tests/
 
 ## Demo 视频
 
-Demo 视频链接：[AI PR Review Assistant Demo 视频](artifacts/demo_video/ai_pr_review_demo_zh_1080p.mp4)。
+Demo 视频链接：
+
+- 仓库内视频：[AI PR Review Assistant Demo 视频](artifacts/demo_video/ai_pr_review_demo_zh_1080p.mp4)
+- 夸克网盘备份：[https://pan.quark.cn/s/b1aaab24c513](https://pan.quark.cn/s/b1aaab24c513)，分享口令：`/~b5673Ynziq~:/`
 
 录制脚本见 [Demo 视频脚本](docs/demo_script.md)。视频应覆盖作品定位、无 AI Key 降级、Markdown / JSON 报告、GitHub Action、设计思路和测试方式。
 
