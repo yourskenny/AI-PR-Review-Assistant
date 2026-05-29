@@ -46,6 +46,8 @@ def render_markdown(
     lines.extend(_bullet_lines(report.summary or [_fallback_summary_line(context)]))
     lines.extend(["", "## Review Brief", ""])
     lines.extend(_bullet_lines(_review_brief_lines(context, findings, test_summary)))
+    lines.extend(["", "## Reviewer Action Plan", ""])
+    lines.extend(_bullet_lines(_reviewer_action_plan(context, findings, test_summary)))
     lines.extend(["", "## Risk Matrix", ""])
     lines.extend(_risk_matrix_lines(findings))
     lines.extend(["", "## Findings with Evidence", ""])
@@ -119,6 +121,7 @@ def render_json(
             "lines": _review_brief_lines(context, findings, test_summary),
             "top_risks": [_finding_payload(finding) for finding in findings[:3]],
         },
+        "reviewer_action_plan": _reviewer_action_plan(context, findings, test_summary),
         "risk_matrix": _risk_matrix_payload(findings),
         "findings": [_finding_payload(finding) for finding in findings],
         "test_gaps": test_summary,
@@ -153,6 +156,45 @@ def render_json(
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def render_sarif(context: PRContext, report: ReviewReport) -> str:
+    findings = _sorted_findings(report.risks)
+    rules = []
+    seen_rules: set[str] = set()
+    for finding in findings:
+        if finding.rule_id in seen_rules:
+            continue
+        seen_rules.add(finding.rule_id)
+        rules.append(
+            {
+                "id": finding.rule_id,
+                "name": finding.rule_id,
+                "shortDescription": {"text": finding.message},
+                "help": {"text": finding.recommendation},
+                "properties": {
+                    "category": finding.category,
+                    "confidence": finding.confidence.value,
+                },
+            }
+        )
+    payload: dict[str, Any] = {
+        "version": "2.1.0",
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "AI PR Review Assistant",
+                        "informationUri": context.html_url,
+                        "rules": rules,
+                    }
+                },
+                "results": [_sarif_result(finding) for finding in findings],
+            }
+        ],
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
 def _sorted_findings(findings: list[RiskFinding]) -> list[RiskFinding]:
     return sorted(
         findings,
@@ -176,6 +218,7 @@ def _finding_lines(finding: RiskFinding) -> list[str]:
         f"- Rule: `{finding.rule_id}`",
         f"- Source: `{finding.source.value}`",
         f"- Confidence: `{finding.confidence.value}`",
+        f"- Priority reason: {_priority_reason(finding)}",
         f"- Recommendation: {finding.recommendation}",
         "",
         "```text",
@@ -228,7 +271,44 @@ def _finding_payload(finding: RiskFinding) -> dict[str, Any]:
         "confidence": finding.confidence.value,
         "recommendation": finding.recommendation,
         "source": finding.source.value,
+        "priority_reason": _priority_reason(finding),
     }
+
+
+def _sarif_result(finding: RiskFinding) -> dict[str, Any]:
+    region: dict[str, Any] = {}
+    if finding.line_start is not None:
+        region["startLine"] = finding.line_start
+    if finding.line_end is not None:
+        region["endLine"] = finding.line_end
+    return {
+        "ruleId": finding.rule_id,
+        "level": _sarif_level(finding.severity),
+        "message": {"text": f"{finding.message} Recommendation: {finding.recommendation}"},
+        "locations": [
+            {
+                "physicalLocation": {
+                    "artifactLocation": {"uri": finding.file or "PR"},
+                    "region": region,
+                }
+            }
+        ],
+        "properties": {
+            "severity": finding.severity.value,
+            "confidence": finding.confidence.value,
+            "source": finding.source.value,
+            "evidence": finding.evidence,
+            "priority_reason": _priority_reason(finding),
+        },
+    }
+
+
+def _sarif_level(severity: Severity) -> str:
+    if severity == Severity.HIGH:
+        return "error"
+    if severity == Severity.MEDIUM:
+        return "warning"
+    return "note"
 
 
 def _finding_location(finding: RiskFinding) -> str:
@@ -259,6 +339,49 @@ def _review_brief_lines(
     else:
         lines.append("未发现带证据的高置信风险，仍建议人工检查行为影响和测试边界。")
     return lines
+
+
+def _reviewer_action_plan(
+    context: PRContext,
+    findings: list[RiskFinding],
+    test_summary: dict[str, Any],
+) -> list[str]:
+    if not findings:
+        return [
+            "Confirm the intended behavior change with the PR author.",
+            "Review boundary conditions, compatibility, and rollback expectations manually.",
+            "Run the relevant test suite before merge.",
+        ]
+    plan = []
+    for index, finding in enumerate(findings[:3], start=1):
+        plan.append(
+            f"{index}. Inspect {_finding_location(finding)} first. "
+            f"{_priority_reason(finding)} Verify by checking: {finding.recommendation}"
+        )
+    if test_summary["source_without_tests"]:
+        plan.append(
+            "Add or request focused tests before merge because source files changed without "
+            "detected test file changes."
+        )
+    else:
+        plan.append("Use the changed tests as the first regression signal, then review edge cases.")
+    if len(context.files) > 10:
+        plan.append("Ask for a file-by-file review map if the change mixes unrelated concerns.")
+    return plan
+
+
+def _priority_reason(finding: RiskFinding) -> str:
+    parts = [
+        f"{finding.severity.value} severity",
+        f"{finding.confidence.value} confidence",
+    ]
+    if finding.line_start is not None:
+        parts.append("new-line evidence")
+    if finding.source.value != "rule":
+        parts.append(f"{finding.source.value} source")
+    if finding.category in {"security", "testing", "review-readiness"}:
+        parts.append(f"{finding.category} impact")
+    return "; ".join(parts) + "."
 
 
 def _highest_risk_text(findings: list[RiskFinding]) -> str:

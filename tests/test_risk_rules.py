@@ -110,6 +110,77 @@ def test_scan_risks_detects_large_pr_maintainability_risk() -> None:
     assert any(finding.rule_id == "maintainability.large_pr" for finding in findings)
 
 
+def test_scan_risks_detects_sql_injection_string_interpolation() -> None:
+    context = _context_with_file(
+        filename="src/db/users.py",
+        patch='@@ -1,1 +1,1 @@\n+query = f"SELECT * FROM users WHERE id = {user_id}"\n',
+    )
+
+    findings = scan_risks(context)
+
+    assert any(finding.rule_id == "security.sql_injection" for finding in findings)
+
+
+def test_scan_risks_detects_permission_bypass_keywords() -> None:
+    context = _context_with_file(
+        filename="src/auth/permissions.py",
+        patch="@@ -1,1 +1,1 @@\n+if user.is_admin or bypass_auth:\n",
+    )
+
+    findings = scan_risks(context)
+
+    assert any(finding.rule_id == "security.permission_bypass" for finding in findings)
+
+
+def test_scan_risks_flags_empty_pr_description() -> None:
+    context = PRContext(
+        ref=PullRequestRef("owner", "repo", 1),
+        title="Change auth behavior",
+        body="",
+        author="dev",
+        html_url="https://github.com/owner/repo/pull/1",
+        files=[
+            PRFile(
+                filename="src/auth/session.py",
+                status="modified",
+                additions=1,
+                deletions=0,
+                patch="@@ -1,1 +1,1 @@\n+return refresh_session(user)\n",
+            )
+        ],
+    )
+
+    findings = scan_risks(context)
+
+    assert any(finding.rule_id == "review_readiness.empty_pr_description" for finding in findings)
+
+
+def test_scan_risks_flags_migration_without_rollback_note() -> None:
+    context = PRContext(
+        ref=PullRequestRef("owner", "repo", 1),
+        title="Add migration",
+        body="Adds the migration.",
+        author="dev",
+        html_url="https://github.com/owner/repo/pull/1",
+        files=[
+            PRFile(
+                filename="migrations/20260529_add_customer_flags.sql",
+                status="added",
+                additions=1,
+                deletions=0,
+                patch="@@ -0,0 +1,1 @@\n+ALTER TABLE customers ADD COLUMN flags TEXT;\n",
+            )
+        ],
+    )
+
+    findings = scan_risks(context)
+
+    assert any(
+        finding.rule_id == "maintainability.migration_without_rollback_note"
+        for finding in findings
+    )
+
+
 def test_every_risk_finding_has_required_metadata() -> None:
     context = _context_with_file(
         filename="src/auth/config.py",

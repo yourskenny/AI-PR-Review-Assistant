@@ -42,12 +42,36 @@ RULES: list[RiskRule] = [
     ),
     RiskRule(
         "security.hardcoded_secret",
-        re.compile(r"\b(password|secret|api[_-]?key|token)\b\s*=\s*['\"][^'\"]+['\"]", re.I),
+        re.compile(
+            r"\b(password|secret|api[_-]?key|token|access[_-]?token)\b\s*=\s*['\"][^'\"]+['\"]",
+            re.I,
+        ),
         Severity.HIGH,
         Confidence.HIGH,
         "security",
         "A credential-like value appears to be hard-coded.",
         "Move secrets to environment variables or a secret manager and rotate exposed values.",
+    ),
+    RiskRule(
+        "security.sql_injection",
+        re.compile(
+            r"(SELECT|INSERT|UPDATE|DELETE).*(\{[^}]+\}|%\s*[a-zA-Z]|\+\s*\w+)",
+            re.I,
+        ),
+        Severity.HIGH,
+        Confidence.MEDIUM,
+        "security",
+        "SQL is assembled with runtime values in the changed line.",
+        "Use parameterized queries or the project's query builder instead of string interpolation.",
+    ),
+    RiskRule(
+        "security.permission_bypass",
+        re.compile(r"\b(bypass_auth|skip_auth|disable_auth|is_admin\s+or|allow_all)\b", re.I),
+        Severity.HIGH,
+        Confidence.MEDIUM,
+        "security",
+        "Permission or authentication bypass logic appears in a sensitive path.",
+        "Require an explicit authorization check and add a focused negative permission test.",
     ),
     RiskRule(
         "security.unsafe_deserialization",
@@ -210,6 +234,43 @@ def scan_risks(
             )
         )
 
+    if _is_empty_body(context.body):
+        findings.append(
+            RiskFinding(
+                severity=Severity.MEDIUM,
+                category="review-readiness",
+                file="PR",
+                message="PR description is empty or too thin for reliable review.",
+                evidence="PR body is empty or contains only placeholder text.",
+                rule_id="review_readiness.empty_pr_description",
+                confidence=Confidence.HIGH,
+                recommendation=(
+                    "Add a short change summary, risk notes, test evidence, and rollback plan "
+                    "before requesting review."
+                ),
+                source=FindingSource.RULE,
+            )
+        )
+
+    migration_files = [file for file in changed_source_files if _is_migration_file(file.filename)]
+    if migration_files and not _mentions_rollback(context.body):
+        touched = ", ".join(file.filename for file in migration_files[:3])
+        findings.append(
+            RiskFinding(
+                severity=Severity.MEDIUM,
+                category="maintainability",
+                file=touched,
+                message="Database or schema migration changed without a rollback note.",
+                evidence="Changed migration file and PR body does not mention rollback or backout.",
+                rule_id="maintainability.migration_without_rollback_note",
+                confidence=Confidence.MEDIUM,
+                recommendation=(
+                    "Document rollback steps, compatibility assumptions, and deployment ordering."
+                ),
+                source=FindingSource.RULE,
+            )
+        )
+
     total_additions = sum(file.additions for file in context.files)
     total_deletions = sum(file.deletions for file in context.files)
     if len(context.files) > 20 or total_additions + total_deletions > 600:
@@ -266,5 +327,27 @@ def _is_high_risk_path(filename: str) -> bool:
         "security",
         "config",
         "secret",
+        "migration",
+        "infra",
     )
     return any(keyword in lowered for keyword in keywords)
+
+
+def _is_empty_body(body: str) -> bool:
+    stripped = body.strip().lower()
+    return stripped in {"", "todo", "tbd", "n/a", "na", "none", "no description"}
+
+
+def _is_migration_file(filename: str) -> bool:
+    lowered = filename.lower()
+    return (
+        "migration" in lowered
+        or "migrations/" in lowered
+        or lowered.endswith(".sql")
+        or "/schema/" in lowered
+    )
+
+
+def _mentions_rollback(body: str) -> bool:
+    lowered = body.lower()
+    return any(term in lowered for term in ("rollback", "backout", "revert", "回滚", "兼容"))

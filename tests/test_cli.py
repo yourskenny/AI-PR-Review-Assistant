@@ -72,6 +72,66 @@ def test_analyze_writes_json_report_when_format_json_is_requested(monkeypatch, t
     assert data["summary"] == ["Changed one Python file."]
 
 
+def test_analyze_writes_sarif_report_when_format_sarif_is_requested(monkeypatch, tmp_path) -> None:
+    class FakeGitHubClient:
+        def fetch_pr_context(self, ref: PullRequestRef) -> PRContext:
+            return PRContext(
+                ref=ref,
+                title="Demo PR",
+                body="",
+                author="dev",
+                html_url="https://github.com/owner/repo/pull/7",
+                files=[PRFile("app.py", "modified", 1, 0, "+eval(user)")],
+            )
+
+    class FakeReviewEngine:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def analyze(self, context: PRContext, use_ai: bool = True) -> ReviewReport:
+            from ai_pr_review.models import Confidence, FindingSource, RiskFinding
+
+            return ReviewReport(
+                risks=[
+                    RiskFinding(
+                        severity=Severity.HIGH,
+                        category="security",
+                        file="app.py",
+                        message="Dynamic execution appears in the changed line.",
+                        evidence="eval(user)",
+                        rule_id="security.dynamic_code_execution",
+                        confidence=Confidence.HIGH,
+                        recommendation="Use a bounded dispatch table.",
+                        source=FindingSource.RULE,
+                        line_start=1,
+                        line_end=1,
+                    )
+                ]
+            )
+
+    monkeypatch.setattr(cli, "GitHubClient", FakeGitHubClient)
+    monkeypatch.setattr(cli, "ReviewEngine", FakeReviewEngine)
+    output = tmp_path / "report.sarif"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "analyze",
+            "https://github.com/owner/repo/pull/7",
+            "--no-ai",
+            "--format",
+            "sarif",
+            "--output",
+            str(output),
+        ],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data["version"] == "2.1.0"
+    assert data["runs"][0]["results"][0]["ruleId"] == "security.dynamic_code_execution"
+
+
 def test_analyze_applies_config_file_to_filters_and_engine(monkeypatch, tmp_path) -> None:
     captured: dict[str, object] = {}
 

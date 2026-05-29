@@ -162,7 +162,8 @@ select {
   margin: 16px 0;
 }
 
-.primary-action {
+.primary-action,
+.secondary-action {
   background: var(--accent);
   border: 0;
   color: #ffffff;
@@ -172,8 +173,22 @@ select {
   padding: 0 18px;
 }
 
-.primary-action:hover {
+.secondary-action {
+  background: var(--ink);
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.primary-action:hover,
+.secondary-action:hover {
   background: var(--accent-strong);
+}
+
+.demo-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 22px;
 }
 
 .brief-panel ul,
@@ -185,6 +200,20 @@ select {
 .brief-panel li,
 .summary-list li {
   margin-bottom: 9px;
+}
+
+.action-list {
+  display: grid;
+  gap: 10px;
+  list-style-position: inside;
+  margin: 0;
+  padding: 0;
+}
+
+.action-list li {
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  padding: 12px;
 }
 
 .error-panel {
@@ -207,7 +236,7 @@ select {
 .metrics {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: 0;
 }
 
@@ -297,6 +326,15 @@ pre {
   border-top: 1px solid var(--line);
   margin-bottom: 0;
   padding-top: 12px;
+}
+
+.priority-reason {
+  background: #fff8df;
+  border: 1px solid #e2ca86;
+  color: #59430f;
+  font-size: 13px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
 }
 
 textarea {

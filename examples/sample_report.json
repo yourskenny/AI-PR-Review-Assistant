@@ -34,10 +34,15 @@
         "rule_id": "testing.source_without_tests",
         "confidence": "medium",
         "recommendation": "Add or update tests that exercise the changed source behavior.",
-        "source": "rule"
+        "source": "rule",
+        "priority_reason": "medium severity; medium confidence; testing impact."
       }
     ]
   },
+  "reviewer_action_plan": [
+    "1. Inspect openai/api_resources/moderation.py first. medium severity; medium confidence; testing impact. Verify by checking: Add or update tests that exercise the changed source behavior.",
+    "Add or request focused tests before merge because source files changed without detected test file changes."
+  ],
   "risk_matrix": [
     {
       "severity": "medium",
@@ -57,7 +62,8 @@
       "rule_id": "testing.source_without_tests",
       "confidence": "medium",
       "recommendation": "Add or update tests that exercise the changed source behavior.",
-      "source": "rule"
+      "source": "rule",
+      "priority_reason": "medium severity; medium confidence; testing impact."
     }
   ],
   "test_gaps": {

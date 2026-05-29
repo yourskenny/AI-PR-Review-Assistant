@@ -59,6 +59,11 @@
         </form>
 
         <aside class="brief-panel">
+          <p class="eyebrow">Champion Demo Case</p>
+          <form method="post" action="/demo/champion">
+            <button class="secondary-action" type="submit">Load demo case</button>
+          </form>
+          <p class="demo-note">Offline-ready sample with auth, SQL, migration, and test-gap signals.</p>
           <p class="eyebrow">Review Brief Shape</p>
           <ul>
             <li>Change summary before findings</li>
@@ -96,6 +101,14 @@
             <dt>Mode</dt>
             <dd>{{ result.mode }}</dd>
           </div>
+          <div>
+            <dt>Highest Risk</dt>
+            <dd>{{ highest_risk }}</dd>
+          </div>
+          <div>
+            <dt>Context</dt>
+            <dd>{{ result.json_report.context.included_files|length }}</dd>
+          </div>
         </dl>
       </section>
 
@@ -115,6 +128,15 @@
             {% endfor %}
           </ul>
           {% endif %}
+        </section>
+
+        <section class="report-section">
+          <h2>Reviewer Action Plan</h2>
+          <ol class="action-list">
+            {% for item in action_plan %}
+            <li>{{ item }}</li>
+            {% endfor %}
+          </ol>
         </section>
 
         <section class="report-section">
@@ -149,6 +171,11 @@
               <div><dt>Confidence</dt><dd>{{ finding.confidence.value }}</dd></div>
               <div><dt>Source</dt><dd>{{ finding.source.value }}</dd></div>
             </dl>
+            {% if result.json_report.findings[loop.index0].priority_reason %}
+            <p class="priority-reason">
+              {{ result.json_report.findings[loop.index0].priority_reason }}
+            </p>
+            {% endif %}
             <pre>{{ finding.evidence }}</pre>
             <p class="recommendation">{{ finding.recommendation }}</p>
           </article>

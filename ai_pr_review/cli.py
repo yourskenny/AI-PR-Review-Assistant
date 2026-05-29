@@ -11,7 +11,7 @@ from ai_pr_review.ai_client import AIClientError
 from ai_pr_review.config import ConfigError, apply_file_filters, load_config
 from ai_pr_review.github_client import GitHubClient, GitHubClientError, parse_pr_url
 from ai_pr_review.github_commenter import GitHubCommenter, GitHubCommenterError
-from ai_pr_review.report import render_json, render_markdown
+from ai_pr_review.report import render_json, render_markdown, render_sarif
 from ai_pr_review.review_engine import ReviewEngine
 from ai_pr_review.scanners.bandit import BanditScanner
 
@@ -38,7 +38,7 @@ def analyze(
     ] = None,
     output_format: Annotated[
         str,
-        typer.Option("--format", help="Output format: markdown or json."),
+        typer.Option("--format", help="Output format: markdown, json, or sarif."),
     ] = "markdown",
     config_path: Annotated[
         Path | None,
@@ -92,11 +92,7 @@ def analyze(
     except (GitHubClientError, AIClientError, ConfigError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    rendered = (
-        render_json(context, report)
-        if normalized_format == "json"
-        else render_markdown(context, report)
-    )
+    rendered = _render_report(normalized_format, context, report)
     if comment:
         try:
             result = GitHubCommenter().upsert_summary_comment(
@@ -140,9 +136,17 @@ def dashboard(
 
 def _normalise_output_format(output_format: str) -> str:
     lowered = output_format.lower()
-    if lowered in {"markdown", "json"}:
+    if lowered in {"markdown", "json", "sarif"}:
         return lowered
-    raise typer.BadParameter("format must be either 'markdown' or 'json'")
+    raise typer.BadParameter("format must be 'markdown', 'json', or 'sarif'")
+
+
+def _render_report(output_format: str, context, report) -> str:
+    if output_format == "json":
+        return render_json(context, report)
+    if output_format == "sarif":
+        return render_sarif(context, report)
+    return render_markdown(context, report)
 
 
 def _build_scanners(scanner_names: str) -> list:

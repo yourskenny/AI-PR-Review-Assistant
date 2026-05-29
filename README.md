@@ -56,6 +56,7 @@ ai-pr-review analyze https://github.com/owner/repo/pull/123 --model gpt-4.1-mini
 ```powershell
 ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format markdown --output analysis-output\report.md
 ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format json --output analysis-output\report.json
+ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format sarif --output analysis-output\report.sarif
 ```
 
 启动本地图形化 Review Dashboard：
@@ -65,6 +66,8 @@ ai-pr-review dashboard --host 127.0.0.1 --port 8765
 ```
 
 打开 `http://127.0.0.1:8765` 后输入 GitHub PR URL，即可在浏览器中查看 PR 摘要、风险矩阵、证据片段、Markdown Review Comment 和 JSON 报告。Dashboard 复用同一套分析引擎，适合 demo 展示和人工快速浏览；CLI 仍然是 CI / GitHub Action 的稳定入口。
+
+Dashboard 还提供内置 Champion Demo Case。无需 GitHub token，点击 `Load demo case` 即可展示认证、SQL、migration、测试缺口和 Reviewer Action Plan，适合评委现场快速验证作品差异化。
 
 使用 JSON 配置文件控制过滤、预算和规则：
 
@@ -120,6 +123,8 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 
 - [Markdown 样例报告](examples/sample_report.md)
 - [JSON 样例报告](examples/sample_report.json)
+- [SARIF 样例报告](examples/sample_report.sarif)
+- [冠军评测证据](docs/evaluation.md)
 
 ```markdown
 # AI PR Review Report
@@ -139,6 +144,27 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 ```
 
 ## 系统设计
+
+### 赛题评分点对应表
+
+| 赛题要求 | 本项目对应实现 |
+| --- | --- |
+| 用户指定 GitHub PR | CLI、Dashboard 和 GitHub Action 示例均以 PR URL 为输入 |
+| 自动获取代码变更 | GitHub REST API 获取 PR metadata、文件列表和 patch |
+| PR 变更总结 | 本地 fallback 和 AI-assisted summary 输出 Change Summary |
+| 风险代码识别 | 规则引擎、可选 scanner、severity、confidence、source 和 evidence |
+| Review 建议生成 | Recommendation、Reviewer Action Plan、copy-ready Review Comment |
+| 分析准确性 | 评测文档、规则测试、报告测试和 GitHub comment mock 测试 |
+| 上下文理解 | patch hunk、新增行号、上下文预算、敏感路径和测试缺口信号 |
+| 误报与漏报控制 | 只对新增行和 PR metadata 出证据 finding，低置信内容进入人工检查建议 |
+| 响应速度 | 默认 GitHub API + patch budget，不 clone、不执行代码，no-AI 模式秒级可运行 |
+| 使用体验 | CLI、Markdown、JSON、SARIF、Dashboard、summary comment、可选 inline review |
+| 模型选择 | 默认低延迟代码模型，AI 负责总结解释，规则负责高置信证据 |
+| 未来扩展 | scanner 接口、SARIF、GitHub App、Semgrep、Gitleaks、CodeQL 和企业部署路线 |
+
+### 为什么不是普通 LLM diff prompt
+
+本项目不会直接把 diff 丢给模型后输出自由文本。系统先解析 PR URL 和 unified diff，绑定新增行号，运行高置信规则和可选 scanner，再按预算构造上下文。AI 的职责是总结、解释和生成可执行建议；高危 finding 必须来自文件、行号或明确证据。这样可以在无模型 key、模型失败或网络不稳定时继续运行，也能降低泛泛评论和幻觉风险。
 
 ### 数据流
 
@@ -276,3 +302,5 @@ Demo 视频链接：待补充。
 官方 FAQ 中与提交规范、评分重点和作品有效性相关的信息已整理到 [官方 FAQ 关键信息摘录](docs/competition_faq_notes.md)。后续迭代本仓库时，应优先按该文档检查 PR、commit、README 和 demo 材料是否满足规则。
 
 本阶段功能收口、验证口径和后续建议见 [2026-05-29 阶段收尾总结](docs/stage_summary_2026-05-29.md)。
+
+若目标是冲击赛题第一名，下一阶段按 [2026-05-29 冠军冲刺规划](docs/champion_sprint_plan_2026-05-29.md) 执行，重点补强评测证据、上下文理解、低噪声排序、Dashboard 演示体验和最终提交包装。

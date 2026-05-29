@@ -26,6 +26,7 @@ def test_dashboard_homepage_renders_analysis_form() -> None:
     assert response.status_code == 200
     assert "AI PR Review Console" in response.text
     assert 'name="pr_url"' in response.text
+    assert "Champion Demo Case" in response.text
     assert "Review Brief" in response.text
 
 
@@ -47,6 +48,7 @@ def test_dashboard_post_renders_review_sections() -> None:
     assert response.status_code == 200
     assert "Demo PR" in response.text
     assert "Risk Matrix" in response.text
+    assert "Reviewer Action Plan" in response.text
     assert "security.dynamic_code_execution" in response.text
     assert "Copy-ready Review Comment" in response.text
 
@@ -70,6 +72,19 @@ def test_dashboard_api_returns_structured_json() -> None:
     data = response.json()
     assert data["pull_request"]["number"] == 7
     assert data["findings"][0]["rule_id"] == "security.dynamic_code_execution"
+
+
+def test_dashboard_demo_case_runs_without_github_network() -> None:
+    from ai_pr_review.dashboard import create_app
+
+    client = TestClient(create_app())
+
+    response = client.post("/demo/champion")
+
+    assert response.status_code == 200
+    assert "Champion demo" in response.text
+    assert "Reviewer Action Plan" in response.text
+    assert "security.dynamic_code_execution" in response.text
 
 
 def _fake_analyzer(

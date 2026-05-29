@@ -21,6 +21,11 @@
 - 测试覆盖信号：未检测到测试相关文件变更，需人工确认测试覆盖。
 - 建议优先查看：openai/api_resources/moderation.py，原因是 Source files changed without an accompanying test file in this PR.
 
+## Reviewer Action Plan
+
+- 1. Inspect openai/api_resources/moderation.py first. medium severity; medium confidence; testing impact. Verify by checking: Add or update tests that exercise the changed source behavior.
+- Add or request focused tests before merge because source files changed without detected test file changes.
+
 ## Risk Matrix
 
 | Severity | Confidence | Count |
@@ -36,6 +41,7 @@ Source files changed without an accompanying test file in this PR.
 - Rule: `testing.source_without_tests`
 - Source: `rule`
 - Confidence: `medium`
+- Priority reason: medium severity; medium confidence; testing impact.
 - Recommendation: Add or update tests that exercise the changed source behavior.
 
 ```text

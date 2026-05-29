@@ -112,6 +112,8 @@ def test_render_markdown_outputs_review_brief_matrix_context_and_copy_ready_comm
     assert "## PR 基本信息" in markdown
     assert "## Change Summary" in markdown
     assert "## Review Brief" in markdown
+    assert "## Reviewer Action Plan" in markdown
+    assert "Priority reason" in markdown
     assert "## Risk Matrix" in markdown
     assert "| Severity | Confidence | Count |" in markdown
     assert "## Findings with Evidence" in markdown
@@ -150,8 +152,22 @@ def test_render_json_is_parseable_and_includes_report_sections() -> None:
 
     assert data["pull_request"]["number"] == 7
     assert data["review_brief"]["top_risks"][0]["file"] == "app.py"
+    assert data["reviewer_action_plan"]
+    assert data["findings"][0]["priority_reason"]
     assert data["risk_matrix"][0]["severity"] == "high"
     assert data["findings"][0]["rule_id"] == "security.dynamic_code_execution"
     assert data["test_gaps"]["has_test_changes"] is True
     assert data["context"]["omitted_files"][0]["filename"] == "docs/usage.md"
     assert data["metadata"]["model"] == "gpt-4.1-mini"
+
+
+def test_render_sarif_outputs_github_code_scanning_shape() -> None:
+    report = ReviewReport(risks=[_finding()])
+
+    sarif = json.loads(report_module.render_sarif(_context(), report))
+
+    assert sarif["version"] == "2.1.0"
+    assert sarif["runs"][0]["tool"]["driver"]["name"] == "AI PR Review Assistant"
+    assert sarif["runs"][0]["results"][0]["ruleId"] == "security.dynamic_code_execution"
+    location = sarif["runs"][0]["results"][0]["locations"][0]["physicalLocation"]
+    assert location["artifactLocation"]["uri"] == "app.py"
