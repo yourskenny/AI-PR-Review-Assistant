@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from ai_pr_review.models import PRContext, RiskFinding, Severity
+from ai_pr_review.patch_parser import parse_pr_file
 
 RulePattern = tuple[re.Pattern[str], Severity, str, str]
 
@@ -46,16 +47,18 @@ def scan_risks(context: PRContext) -> list[RiskFinding]:
     changed_source_files = [file for file in context.files if not _is_test_file(file.filename)]
 
     for file in context.files:
-        for line in _added_lines(file.patch):
+        for line in parse_pr_file(file).added_lines():
             for pattern, severity, category, message in RULES:
-                if pattern.search(line):
+                if pattern.search(line.content):
                     findings.append(
                         RiskFinding(
                             severity=severity,
                             category=category,
                             file=file.filename,
                             message=message,
-                            evidence=line.strip(),
+                            evidence=line.content.strip(),
+                            line_start=line.new_line_number,
+                            line_end=line.new_line_number,
                         )
                     )
 
@@ -72,15 +75,6 @@ def scan_risks(context: PRContext) -> list[RiskFinding]:
         )
 
     return findings
-
-
-def _added_lines(patch: str) -> list[str]:
-    lines: list[str] = []
-    for line in patch.splitlines():
-        if line.startswith("+") and not line.startswith("+++"):
-            lines.append(line[1:])
-    return lines
-
 
 def _is_test_file(filename: str) -> bool:
     lowered = filename.lower()
