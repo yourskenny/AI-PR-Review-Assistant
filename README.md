@@ -118,6 +118,8 @@ tests/
 
 本仓库重点展示一个可运行的 AI PR Review 工具闭环：指定 PR、获取变更、构造上下文、识别风险并生成建议。实现上优先保证端到端清晰、报告可解释和扩展边界明确，后续可以在此基础上接入更深的代码图谱和自动评论能力。
 
+后续建设以 [AI PR Review Assistant 主建设方案](docs/master_build_plan.md) 为主要依据，优先落实低噪声 Review、证据链、规则与 AI 分工、可离线降级和小 PR 持续交付。
+
 赛题原文已保存到 [赛题原文](docs/problem_statement.md)，用于持续校验实现范围是否偏离题面要求。
 
 官方 FAQ 中与提交规范、评分重点和作品有效性相关的信息已整理到 [官方 FAQ 关键信息摘录](docs/competition_faq_notes.md)。后续迭代本仓库时，应优先按该文档检查 PR、commit、README 和 demo 材料是否满足规则。
