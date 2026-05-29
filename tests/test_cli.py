@@ -91,6 +91,7 @@ def test_analyze_applies_config_file_to_filters_and_engine(monkeypatch, tmp_path
             total_patch_budget: int = 12000,
             enabled_rules: list[str] | None = None,
             min_severity: Severity = Severity.LOW,
+            **kwargs: object,
         ) -> None:
             captured["model"] = model
             captured["language"] = language
@@ -192,3 +193,42 @@ def test_analyze_posts_summary_comment_when_comment_flag_is_set(monkeypatch) -> 
     assert captured["ref"] == PullRequestRef("owner", "repo", 7)
     assert "comment me" in str(captured["body"])
     assert "GitHub comment created" in result.output
+
+
+def test_analyze_enables_bandit_scanner_from_cli(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeGitHubClient:
+        def fetch_pr_context(self, ref: PullRequestRef) -> PRContext:
+            return PRContext(
+                ref=ref,
+                title="Demo PR",
+                body="",
+                author="dev",
+                html_url="https://github.com/owner/repo/pull/7",
+                files=[PRFile("src/app.py", "modified", 1, 0, "+eval(user)")],
+            )
+
+    class FakeReviewEngine:
+        def __init__(self, scanners: list[object] | None = None, **kwargs: object) -> None:
+            captured["scanner_types"] = [type(scanner).__name__ for scanner in scanners or []]
+
+        def analyze(self, context: PRContext, use_ai: bool = True) -> ReviewReport:
+            return ReviewReport(summary=["scanned"])
+
+    monkeypatch.setattr(cli, "GitHubClient", FakeGitHubClient)
+    monkeypatch.setattr(cli, "ReviewEngine", FakeReviewEngine)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "analyze",
+            "https://github.com/owner/repo/pull/7",
+            "--no-ai",
+            "--enable-scanners",
+            "bandit",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["scanner_types"] == ["BanditScanner"]

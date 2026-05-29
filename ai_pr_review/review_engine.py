@@ -10,6 +10,7 @@ from ai_pr_review.ai_client import AIClientError, parse_ai_review_response
 from ai_pr_review.context_builder import build_context_pack
 from ai_pr_review.models import PRContext, ReviewReport, Severity
 from ai_pr_review.risk_rules import scan_risks
+from ai_pr_review.scanners.base import Scanner
 
 
 class ReviewEngine:
@@ -21,6 +22,7 @@ class ReviewEngine:
         total_patch_budget: int = 12000,
         enabled_rules: list[str] | None = None,
         min_severity: Severity = Severity.LOW,
+        scanners: list[Scanner] | None = None,
     ) -> None:
         self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4.1-mini"
         self.language = _normalise_language(language)
@@ -28,6 +30,7 @@ class ReviewEngine:
         self.total_patch_budget = total_patch_budget
         self.enabled_rules = enabled_rules
         self.min_severity = min_severity
+        self.scanners = scanners or []
 
     def analyze(self, context: PRContext, use_ai: bool = True) -> ReviewReport:
         risks = scan_risks(
@@ -35,6 +38,7 @@ class ReviewEngine:
             enabled_rules=self.enabled_rules,
             min_severity=self.min_severity,
         )
+        risks.extend(self._scanner_findings(context))
         fallback = ReviewReport(
             summary=self._fallback_summary(context),
             risks=risks,
@@ -57,6 +61,12 @@ class ReviewEngine:
             fallback.review_checklist = ai_report.review_checklist
         fallback.model_used = self.model
         return fallback
+
+    def _scanner_findings(self, context: PRContext) -> list:
+        findings = []
+        for scanner in self.scanners:
+            findings.extend(scanner.scan(context))
+        return findings
 
     def _ai_analyze(self, context: PRContext, risks: list) -> ReviewReport:
         client = OpenAI()
