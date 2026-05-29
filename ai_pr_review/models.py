@@ -10,6 +10,18 @@ class Severity(StrEnum):
     HIGH = "high"
 
 
+class Confidence(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class FindingSource(StrEnum):
+    RULE = "rule"
+    AI = "ai"
+    SCANNER = "scanner"
+
+
 @dataclass(frozen=True)
 class PullRequestRef:
     owner: str
@@ -76,6 +88,10 @@ class RiskFinding:
     file: str
     message: str
     evidence: str
+    rule_id: str
+    confidence: Confidence
+    recommendation: str
+    source: FindingSource
     line_start: int | None = None
     line_end: int | None = None
 
