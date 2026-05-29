@@ -1,0 +1,95 @@
+{
+  "pull_request": {
+    "owner": "openai",
+    "repo": "openai-python",
+    "number": 123,
+    "title": "Add api_key parameter to Moderation.create",
+    "author": "zafercavdar",
+    "url": "https://github.com/openai/openai-python/pull/123",
+    "files_changed": 1,
+    "additions": 2,
+    "deletions": 2
+  },
+  "summary": [
+    "PR #123: Add api_key parameter to Moderation.create",
+    "共变更 1 个文件，+2/-2 行。",
+    "检测到的文件类型：py。"
+  ],
+  "review_brief": {
+    "lines": [
+      "变更规模：1 个文件，+2/-2 行。",
+      "最高风险：medium/medium testing at openai/api_resources/moderation.py",
+      "测试覆盖信号：未检测到测试相关文件变更，需人工确认测试覆盖。",
+      "建议优先查看：openai/api_resources/moderation.py，原因是 Source files changed without an accompanying test file in this PR."
+    ],
+    "top_risks": [
+      {
+        "severity": "medium",
+        "category": "testing",
+        "file": "openai/api_resources/moderation.py",
+        "line_start": null,
+        "line_end": null,
+        "message": "Source files changed without an accompanying test file in this PR.",
+        "evidence": "No changed file matched common test naming conventions.",
+        "rule_id": "testing.source_without_tests",
+        "confidence": "medium",
+        "recommendation": "Add or update tests that exercise the changed source behavior.",
+        "source": "rule"
+      }
+    ]
+  },
+  "risk_matrix": [
+    {
+      "severity": "medium",
+      "confidence": "medium",
+      "count": 1
+    }
+  ],
+  "findings": [
+    {
+      "severity": "medium",
+      "category": "testing",
+      "file": "openai/api_resources/moderation.py",
+      "line_start": null,
+      "line_end": null,
+      "message": "Source files changed without an accompanying test file in this PR.",
+      "evidence": "No changed file matched common test naming conventions.",
+      "rule_id": "testing.source_without_tests",
+      "confidence": "medium",
+      "recommendation": "Add or update tests that exercise the changed source behavior.",
+      "source": "rule"
+    }
+  ],
+  "test_gaps": {
+    "source_files": [
+      "openai/api_resources/moderation.py"
+    ],
+    "test_files": [],
+    "has_source_changes": true,
+    "has_test_changes": false,
+    "source_without_tests": true
+  },
+  "suggestions": [
+    "优先检查下列风险项，因为它们包含直接 diff 证据。"
+  ],
+  "review_checklist": [],
+  "context": {
+    "included_files": [
+      {
+        "filename": "openai/api_resources/moderation.py",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2,
+        "truncated": false,
+        "truncation_reason": null
+      }
+    ],
+    "omitted_files": []
+  },
+  "copy_ready_review_comment": "AI PR Review brief for #123: Add api_key parameter to Moderation.create\n\n- PR #123: Add api_key parameter to Moderation.create\n- 共变更 1 个文件，+2/-2 行。\n- 检测到的文件类型：py。\n\nTop risks:\n- medium/medium openai/api_resources/moderation.py: Source files changed without an accompanying test file in this PR.\n- Test note: source changed without detected test file changes.",
+  "metadata": {
+    "model": "local heuristic analyzer",
+    "mode": "local-only",
+    "ai_error": null
+  }
+}
