@@ -15,7 +15,7 @@ def test_scan_risks_detects_dynamic_execution() -> None:
                 status="modified",
                 additions=1,
                 deletions=0,
-                patch="@@\n+eval(user_input)\n",
+                patch="@@ -0,0 +1,1 @@\n+eval(user_input)\n",
             )
         ],
     )
@@ -24,6 +24,7 @@ def test_scan_risks_detects_dynamic_execution() -> None:
 
     assert any(finding.severity == Severity.HIGH for finding in findings)
     assert any(finding.category == "security" for finding in findings)
+    assert any(finding.line_start == 1 for finding in findings)
 
 
 def test_scan_risks_adds_testing_gap_for_source_only_change() -> None:

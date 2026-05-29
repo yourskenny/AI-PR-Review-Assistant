@@ -18,9 +18,12 @@ def render_markdown(context: PRContext, report: ReviewReport) -> str:
     lines.extend(["", "## Risk Findings", ""])
     if report.risks:
         for finding in report.risks:
+            location = finding.file
+            if finding.line_start is not None:
+                location = f"{location}:{finding.line_start}"
             lines.extend(
                 [
-                    f"### {finding.severity.value.upper()} {finding.category}: {finding.file}",
+                    f"### {finding.severity.value.upper()} {finding.category}: {location}",
                     "",
                     finding.message,
                     "",
