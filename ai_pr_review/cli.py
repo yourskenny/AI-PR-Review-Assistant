@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+import uvicorn
 from rich.console import Console
 
 from ai_pr_review.ai_client import AIClientError
@@ -104,6 +105,24 @@ def analyze(
         console.print(f"[green]Report written to {output}[/green]")
     else:
         console.print(rendered)
+
+
+@app.command()
+def dashboard(
+    host: Annotated[
+        str,
+        typer.Option("--host", help="Dashboard bind host."),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int,
+        typer.Option("--port", help="Dashboard bind port."),
+    ] = 8765,
+) -> None:
+    """Start the local Web dashboard."""
+    from ai_pr_review.dashboard import create_app
+
+    console.print(f"[green]Dashboard running at http://{host}:{port}[/green]")
+    uvicorn.run(create_app(), host=host, port=port)
 
 
 def _normalise_output_format(output_format: str) -> str:

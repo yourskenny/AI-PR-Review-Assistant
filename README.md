@@ -58,6 +58,14 @@ ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format mar
 ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format json --output analysis-output\report.json
 ```
 
+启动本地图形化 Review Dashboard：
+
+```powershell
+ai-pr-review dashboard --host 127.0.0.1 --port 8765
+```
+
+打开 `http://127.0.0.1:8765` 后输入 GitHub PR URL，即可在浏览器中查看 PR 摘要、风险矩阵、证据片段、Markdown Review Comment 和 JSON 报告。Dashboard 复用同一套分析引擎，适合 demo 展示和人工快速浏览；CLI 仍然是 CI / GitHub Action 的稳定入口。
+
 使用 JSON 配置文件控制过滤、预算和规则：
 
 ```powershell
@@ -198,6 +206,7 @@ python -m ai_pr_review.cli analyze https://github.com/openai/openai-python/pull/
 ai_pr_review/
   cli.py              # 命令行入口
   config.py           # JSON 配置、文件过滤和分析参数
+  dashboard.py        # 本地 Web dashboard 和 JSON API
   github_commenter.py # PR summary comment 创建 / 更新
   github_client.py    # GitHub PR 数据获取
   models.py           # 核心数据结构
@@ -210,6 +219,10 @@ ai_pr_review/
   scanners/
     base.py           # 外部扫描器协议
     bandit.py         # 可选 Bandit JSON 适配器
+  static/
+    dashboard.css     # Dashboard 样式
+  templates/
+    dashboard.html    # Dashboard 页面模板
 examples/
   github-action.yml
 tests/
@@ -219,6 +232,7 @@ tests/
   test_review_engine.py
   test_risk_rules.py
   test_report.py
+  test_dashboard.py
 ```
 
 ## 未来扩展
