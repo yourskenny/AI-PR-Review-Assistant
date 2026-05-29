@@ -9,6 +9,7 @@ from rich.console import Console
 from ai_pr_review.ai_client import AIClientError
 from ai_pr_review.config import ConfigError, apply_file_filters, load_config
 from ai_pr_review.github_client import GitHubClient, GitHubClientError, parse_pr_url
+from ai_pr_review.github_commenter import GitHubCommenter, GitHubCommenterError
 from ai_pr_review.report import render_json, render_markdown
 from ai_pr_review.review_engine import ReviewEngine
 
@@ -41,6 +42,10 @@ def analyze(
         Path | None,
         typer.Option("--config", help="Path to .ai-pr-review.json config file."),
     ] = None,
+    comment: Annotated[
+        bool,
+        typer.Option("--comment", help="Create or update one GitHub PR summary comment."),
+    ] = False,
     no_ai: Annotated[
         bool,
         typer.Option("--no-ai", help="Disable OpenAI analysis and use local heuristics only."),
@@ -78,6 +83,15 @@ def analyze(
         if normalized_format == "json"
         else render_markdown(context, report)
     )
+    if comment:
+        try:
+            result = GitHubCommenter().upsert_summary_comment(
+                ref,
+                render_markdown(context, report),
+            )
+        except GitHubCommenterError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+        console.print(f"[green]GitHub comment {result}[/green]")
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(rendered, encoding="utf-8")

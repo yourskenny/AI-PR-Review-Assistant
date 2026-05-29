@@ -81,6 +81,15 @@ ai-pr-review analyze https://github.com/owner/repo/pull/123 --config .ai-pr-revi
 }
 ```
 
+将报告写回 PR 讨论区的单条 summary comment：
+
+```powershell
+$env:GITHUB_TOKEN = "ghp_xxx"
+ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --comment
+```
+
+`--comment` 会查找带有 `<!-- ai-pr-review-assistant -->` 标记的 bot comment，存在则更新，不存在则创建。当前版本有意只发单条 summary comment，避免大量 inline comments 干扰 Review。
+
 也可以直接用 Python 模块运行：
 
 ```powershell
@@ -134,12 +143,27 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 
 本项目采用规则和模型结合的方式。规则层适合发现稳定、高置信的工程风险；模型层负责解释影响、聚合上下文和生成自然语言建议。报告中保留严重级别和证据片段，Review 人可以快速判断是否采纳。未来版本可以加入历史 PR 反馈，把“被接受的建议”和“被忽略的建议”回流到排序策略中。
 
+### GitHub Action 集成
+
+仓库提供 [GitHub Action 示例](examples/github-action.yml)，可在 PR opened / synchronize / reopened 时运行分析并发布单条 summary comment。示例使用最小权限：
+
+- `contents: read`
+- `pull-requests: write`
+- `issues: write`
+
+安全边界：
+
+- 示例默认跳过 fork PR，避免把仓库 secrets 暴露给不可信代码。
+- 默认不执行 PR 中的代码，只读取 GitHub API 提供的 PR 元数据和 patch。
+- 自动评论只发布或更新一条 summary comment，不生成大量行级评论。
+
 ## 项目结构
 
 ```text
 ai_pr_review/
   cli.py              # 命令行入口
   config.py           # JSON 配置、文件过滤和分析参数
+  github_commenter.py # PR summary comment 创建 / 更新
   github_client.py    # GitHub PR 数据获取
   models.py           # 核心数据结构
   patch_parser.py     # patch hunk 和新增行号解析
@@ -148,6 +172,8 @@ ai_pr_review/
   review_engine.py    # 分析编排和模型调用
   risk_rules.py       # 本地风险规则
   report.py           # Markdown / JSON 报告生成
+examples/
+  github-action.yml
 tests/
   test_pr_url.py
   test_patch_parser.py
