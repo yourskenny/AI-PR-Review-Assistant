@@ -72,6 +72,42 @@ class ParsedFilePatch:
 
 
 @dataclass(frozen=True)
+class ChangedFileSummary:
+    filename: str
+    status: str
+    additions: int
+    deletions: int
+
+
+@dataclass(frozen=True)
+class ContextFile:
+    filename: str
+    status: str
+    additions: int
+    deletions: int
+    patch: str
+    truncated: bool = False
+    truncation_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class OmittedContextFile:
+    filename: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class ContextPack:
+    title: str
+    body: str
+    author: str
+    html_url: str
+    changed_files: list[ChangedFileSummary]
+    files: list[ContextFile]
+    omitted_files: list[OmittedContextFile]
+
+
+@dataclass(frozen=True)
 class PRContext:
     ref: PullRequestRef
     title: str

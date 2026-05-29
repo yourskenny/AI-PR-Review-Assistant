@@ -2,17 +2,25 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict
 
 from openai import OpenAI
 
+from ai_pr_review.context_builder import build_context_pack
 from ai_pr_review.models import PRContext, ReviewReport
 from ai_pr_review.risk_rules import scan_risks
 
 
 class ReviewEngine:
-    def __init__(self, model: str | None = None, patch_budget_per_file: int = 3500) -> None:
+    def __init__(
+        self,
+        model: str | None = None,
+        patch_budget_per_file: int = 3500,
+        total_patch_budget: int = 12000,
+    ) -> None:
         self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4.1-mini"
         self.patch_budget_per_file = patch_budget_per_file
+        self.total_patch_budget = total_patch_budget
 
     def analyze(self, context: PRContext, use_ai: bool = True) -> ReviewReport:
         risks = scan_risks(context)
@@ -35,6 +43,12 @@ class ReviewEngine:
 
     def _ai_analyze(self, context: PRContext, risks: list) -> ReviewReport:
         client = OpenAI()
+        context_pack = build_context_pack(
+            context,
+            risks,
+            patch_budget_per_file=self.patch_budget_per_file,
+            total_patch_budget=self.total_patch_budget,
+        )
         payload = {
             "pull_request": {
                 "title": context.title,
@@ -42,16 +56,9 @@ class ReviewEngine:
                 "author": context.author,
                 "url": context.html_url,
             },
-            "files": [
-                {
-                    "filename": file.filename,
-                    "status": file.status,
-                    "additions": file.additions,
-                    "deletions": file.deletions,
-                    "patch": file.patch[: self.patch_budget_per_file],
-                }
-                for file in context.files
-            ],
+            "changed_files": [asdict(file) for file in context_pack.changed_files],
+            "files": [asdict(file) for file in context_pack.files],
+            "omitted_files": [asdict(file) for file in context_pack.omitted_files],
             "rule_findings": [
                 {
                     "severity": finding.severity.value,
