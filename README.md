@@ -51,6 +51,13 @@ ai-pr-review analyze https://github.com/owner/repo/pull/123
 ai-pr-review analyze https://github.com/owner/repo/pull/123 --model gpt-4.1-mini --language zh
 ```
 
+生成 Markdown 或 JSON 报告文件：
+
+```powershell
+ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format markdown --output analysis-output\report.md
+ai-pr-review analyze https://github.com/owner/repo/pull/123 --no-ai --format json --output analysis-output\report.json
+```
+
 也可以直接用 Python 模块运行：
 
 ```powershell
@@ -60,15 +67,19 @@ python -m ai_pr_review.cli analyze https://github.com/owner/repo/pull/123
 ## 输出示例
 
 ```markdown
-# PR Review Report
+# AI PR Review Report
 
-## Summary
+## Change Summary
 - This PR changes authentication middleware and session refresh behavior.
 
-## Risks
-- High: New token parsing path does not validate expiration before use.
+## Review Brief
+- 变更规模：3 个文件，+120/-30 行。
+- 最高风险：high/high security at auth/session.py:42
 
-## Suggestions
+## Findings with Evidence
+### HIGH security: auth/session.py:42
+- Rule: `security.dynamic_code_execution`
+- Confidence: `high`
 - Add an explicit expired-token test around the refresh branch.
 ```
 
@@ -107,12 +118,19 @@ ai_pr_review/
   cli.py              # 命令行入口
   github_client.py    # GitHub PR 数据获取
   models.py           # 核心数据结构
+  patch_parser.py     # patch hunk 和新增行号解析
+  context_builder.py  # 上下文预算控制和省略记录
+  ai_client.py        # AI JSON 解析和降级
   review_engine.py    # 分析编排和模型调用
   risk_rules.py       # 本地风险规则
-  report.py           # Markdown 报告生成
+  report.py           # Markdown / JSON 报告生成
 tests/
   test_pr_url.py
+  test_patch_parser.py
+  test_context_builder.py
+  test_review_engine.py
   test_risk_rules.py
+  test_report.py
 ```
 
 ## 未来扩展

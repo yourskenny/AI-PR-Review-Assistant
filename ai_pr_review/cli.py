@@ -8,7 +8,7 @@ from rich.console import Console
 
 from ai_pr_review.ai_client import AIClientError
 from ai_pr_review.github_client import GitHubClient, GitHubClientError, parse_pr_url
-from ai_pr_review.report import render_markdown
+from ai_pr_review.report import render_json, render_markdown
 from ai_pr_review.review_engine import ReviewEngine
 
 app = typer.Typer(help="AI-assisted GitHub Pull Request review CLI.")
@@ -30,8 +30,12 @@ def analyze(
     ],
     output: Annotated[
         Path | None,
-        typer.Option("--output", "-o", help="Write the markdown report to a file."),
+        typer.Option("--output", "-o", help="Write the report to a file."),
     ] = None,
+    output_format: Annotated[
+        str,
+        typer.Option("--format", help="Output format: markdown or json."),
+    ] = "markdown",
     no_ai: Annotated[
         bool,
         typer.Option("--no-ai", help="Disable OpenAI analysis and use local heuristics only."),
@@ -47,19 +51,31 @@ def analyze(
 ) -> None:
     """Fetch a GitHub PR and generate a review report."""
     try:
+        normalized_format = _normalise_output_format(output_format)
         ref = parse_pr_url(pr_url)
         context = GitHubClient().fetch_pr_context(ref)
         report = ReviewEngine(model=model, language=language).analyze(context, use_ai=not no_ai)
     except (GitHubClientError, AIClientError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    markdown = render_markdown(context, report)
+    rendered = (
+        render_json(context, report)
+        if normalized_format == "json"
+        else render_markdown(context, report)
+    )
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(markdown, encoding="utf-8")
+        output.write_text(rendered, encoding="utf-8")
         console.print(f"[green]Report written to {output}[/green]")
     else:
-        console.print(markdown)
+        console.print(rendered)
+
+
+def _normalise_output_format(output_format: str) -> str:
+    lowered = output_format.lower()
+    if lowered in {"markdown", "json"}:
+        return lowered
+    raise typer.BadParameter("format must be either 'markdown' or 'json'")
 
 
 if __name__ == "__main__":
