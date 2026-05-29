@@ -9,3 +9,6 @@ dist/
 build/
 *.egg-info/
 analysis-output/
+artifacts/demo_video/*
+!artifacts/demo_video/
+!artifacts/demo_video/ai_pr_review_demo_zh_1080p.mp4
