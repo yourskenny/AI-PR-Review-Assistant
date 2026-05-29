@@ -145,3 +145,50 @@ def test_analyze_applies_config_file_to_filters_and_engine(monkeypatch, tmp_path
         "use_ai": False,
         "files": ["src/app.py"],
     }
+
+
+def test_analyze_posts_summary_comment_when_comment_flag_is_set(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeGitHubClient:
+        def fetch_pr_context(self, ref: PullRequestRef) -> PRContext:
+            return PRContext(
+                ref=ref,
+                title="Demo PR",
+                body="",
+                author="dev",
+                html_url="https://github.com/owner/repo/pull/7",
+                files=[PRFile("src/app.py", "modified", 1, 0, "+print('hello')")],
+            )
+
+    class FakeReviewEngine:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def analyze(self, context: PRContext, use_ai: bool = True) -> ReviewReport:
+            return ReviewReport(summary=["comment me"])
+
+    class FakeCommenter:
+        def upsert_summary_comment(self, ref: PullRequestRef, body: str) -> str:
+            captured["ref"] = ref
+            captured["body"] = body
+            return "created"
+
+    monkeypatch.setattr(cli, "GitHubClient", FakeGitHubClient)
+    monkeypatch.setattr(cli, "ReviewEngine", FakeReviewEngine)
+    monkeypatch.setattr(cli, "GitHubCommenter", lambda: FakeCommenter())
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "analyze",
+            "https://github.com/owner/repo/pull/7",
+            "--no-ai",
+            "--comment",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["ref"] == PullRequestRef("owner", "repo", 7)
+    assert "comment me" in str(captured["body"])
+    assert "GitHub comment created" in result.output

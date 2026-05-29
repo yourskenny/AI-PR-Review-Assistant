@@ -1,0 +1,107 @@
+import requests
+
+from ai_pr_review.models import PullRequestRef
+
+COMMENT_MARKER = "<!-- ai-pr-review-assistant -->"
+
+
+def test_upsert_summary_comment_updates_existing_bot_comment(monkeypatch) -> None:
+    from ai_pr_review.github_commenter import GitHubCommenter
+
+    calls: list[tuple[str, str, str | None]] = []
+
+    class FakeResponse:
+        status_code = 200
+        text = ""
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, **kwargs):
+        calls.append(("GET", url, None))
+        return FakeResponse(
+            [
+                {"id": 100, "body": "human note", "user": {"type": "User"}},
+                {"id": 200, "body": f"{COMMENT_MARKER}\nold", "user": {"type": "Bot"}},
+            ]
+        )
+
+    def fake_patch(url, **kwargs):
+        calls.append(("PATCH", url, kwargs["json"]["body"]))
+        return FakeResponse({"id": 200})
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr(requests, "patch", fake_patch)
+
+    result = GitHubCommenter(token="token").upsert_summary_comment(
+        PullRequestRef("owner", "repo", 7),
+        "new report",
+    )
+
+    assert result == "updated"
+    assert calls[-1] == (
+        "PATCH",
+        "https://api.github.com/repos/owner/repo/issues/comments/200",
+        f"{COMMENT_MARKER}\nnew report",
+    )
+
+
+def test_upsert_summary_comment_creates_comment_when_marker_is_missing(monkeypatch) -> None:
+    from ai_pr_review.github_commenter import GitHubCommenter
+
+    calls: list[tuple[str, str, str | None]] = []
+
+    class FakeResponse:
+        status_code = 201
+        text = ""
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, **kwargs):
+        calls.append(("GET", url, None))
+        return FakeResponse([])
+
+    def fake_post(url, **kwargs):
+        calls.append(("POST", url, kwargs["json"]["body"]))
+        return FakeResponse({"id": 300})
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    result = GitHubCommenter(token="token").upsert_summary_comment(
+        PullRequestRef("owner", "repo", 7),
+        "new report",
+    )
+
+    assert result == "created"
+    assert calls[-1] == (
+        "POST",
+        "https://api.github.com/repos/owner/repo/issues/7/comments",
+        f"{COMMENT_MARKER}\nnew report",
+    )
+
+
+def test_upsert_summary_comment_wraps_network_errors(monkeypatch) -> None:
+    from ai_pr_review.github_commenter import GitHubCommenter, GitHubCommenterError
+
+    def fake_get(*args, **kwargs):
+        raise requests.ConnectionError("connection reset")
+
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    try:
+        GitHubCommenter(token="token").upsert_summary_comment(
+            PullRequestRef("owner", "repo", 7),
+            "new report",
+        )
+    except GitHubCommenterError as exc:
+        assert "GitHub comment request failed" in str(exc)
+    else:
+        raise AssertionError("expected GitHubCommenterError")
