@@ -42,5 +42,10 @@ def render_markdown(context: PRContext, report: ReviewReport) -> str:
 
     lines.extend(["## Review Suggestions", ""])
     lines.extend(f"- {item}" for item in report.suggestions)
+    if report.review_checklist:
+        lines.extend(["", "## Review Checklist", ""])
+        lines.extend(f"- {item}" for item in report.review_checklist)
+    if report.ai_error:
+        lines.extend(["", "## Analyzer Notes", "", f"- {report.ai_error}"])
     lines.append("")
     return "\n".join(lines)

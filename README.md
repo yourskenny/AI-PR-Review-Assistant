@@ -37,10 +37,18 @@ $env:OPENAI_API_KEY = "sk-xxx"
 $env:OPENAI_MODEL = "gpt-4.1-mini"
 ```
 
+模型返回非法 JSON 或 API 调用失败时，工具会自动降级到本地规则报告，不会让 CLI 因模型失败中断。
+
 ### 4. 分析 PR
 
 ```powershell
 ai-pr-review analyze https://github.com/owner/repo/pull/123
+```
+
+指定模型和报告语言：
+
+```powershell
+ai-pr-review analyze https://github.com/owner/repo/pull/123 --model gpt-4.1-mini --language zh
 ```
 
 也可以直接用 Python 模块运行：
